@@ -87,10 +87,81 @@ class JiraClient:
             logging.error(f"Jira API request failed: {e}")
             raise
     
+    def _fetch_issues_for_period(self, project_key: str, start_date: datetime, end_date: datetime, 
+                                   seen_keys: set, depth: int = 0) -> List[Dict[str, Any]]:
+        """
+        Recursively fetch issues for a date range, subdividing if we hit the 100-issue limit.
+        
+        Args:
+            project_key: Jira project key.
+            start_date: Start date of period.
+            end_date: End date of period.
+            seen_keys: Set of already-seen issue keys to avoid duplicates.
+            depth: Recursion depth (for safety).
+            
+        Returns:
+            List of issues for this period.
+        """
+        if depth > 10:  # Safety: max 10 levels of subdivision
+            logging.warning(f"    Max recursion depth reached")
+            return []
+        
+        base_url = f"{self.base_url}/rest/api/3/search/jql"
+        
+        start_str = format_date_for_jira(start_date)
+        end_str = format_date_for_jira(end_date)
+        
+        jql = f'project={project_key} AND created >= "{start_str}" AND created <= "{end_str}" ORDER BY created DESC'
+        
+        params = {
+            'jql': jql,
+            'startAt': 0,
+            'maxResults': 1000,
+            'expand': 'changelog',
+            'fields': 'key,summary,issuetype,created,status'
+        }
+        
+        try:
+            response = self._make_request(base_url, params=params, method='GET')
+            data = response.json()
+            
+            issues = data.get('issues', [])
+            
+            # If we got exactly 100 issues, we likely hit the limit - subdivide
+            if len(issues) == 100:
+                indent = "  " * (depth + 2)
+                logging.warning(f"{indent}⚠️  Hit 100-issue limit! Subdividing period...")
+                
+                # Calculate midpoint
+                period_days = (end_date - start_date).days
+                if period_days <= 1:
+                    # Can't subdivide further - return what we have
+                    logging.warning(f"{indent}Cannot subdivide further (1 day period)")
+                    return issues
+                
+                mid_date = start_date + relativedelta(days=period_days // 2)
+                mid_str = format_date_for_jira(mid_date)
+                
+                logging.warning(f"{indent}Splitting into: {start_str} to {mid_str} and {mid_str} to {end_str}")
+                
+                # Fetch first half
+                issues_part1 = self._fetch_issues_for_period(project_key, start_date, mid_date, seen_keys, depth + 1)
+                
+                # Fetch second half
+                issues_part2 = self._fetch_issues_for_period(project_key, mid_date, end_date, seen_keys, depth + 1)
+                
+                return issues_part1 + issues_part2
+            
+            return issues
+            
+        except Exception as e:
+            logging.error(f"Failed to fetch issues for {start_str} to {end_str}: {e}")
+            return []
+    
     def get_all_issues(self, project_key: str) -> List[Dict[str, Any]]:
         """
         Fetch all issues for a project by breaking down into monthly chunks.
-        This approach avoids pagination issues by querying month-by-month.
+        Automatically subdivides months that hit the 100-issue API limit.
         
         Args:
             project_key: Jira project key (e.g., "OA").
@@ -98,9 +169,6 @@ class JiraClient:
         Returns:
             List of issue dictionaries with changelog.
         """
-        # Use API v3 search/jql endpoint with GET
-        base_url = f"{self.base_url}/rest/api/3/search/jql"
-        
         all_issues = []
         seen_keys = set()  # Track issue keys to avoid duplicates
         
@@ -108,58 +176,35 @@ class JiraClient:
         end_date = datetime.now()
         
         logging.warning(f"Fetching issues month-by-month for last {self.date_range_months} months...")
+        logging.warning(f"Note: Months with 100+ issues will be automatically subdivided")
         
         for month_offset in range(self.date_range_months):
             # Calculate start and end of this month chunk
             month_end = end_date - relativedelta(months=month_offset)
             month_start = month_end - relativedelta(months=1)
             
-            # Format dates for JQL
             start_str = format_date_for_jira(month_start)
             end_str = format_date_for_jira(month_end)
             
-            # JQL query for this month
-            jql = f'project={project_key} AND created >= "{start_str}" AND created < "{end_str}" ORDER BY created DESC'
-            
             logging.warning(f"Month {month_offset + 1}/{self.date_range_months}: {start_str} to {end_str}")
             
-            # Try to get up to 1000 results per month (max allowed by Jira)
-            params = {
-                'jql': jql,
-                'startAt': 0,
-                'maxResults': 1000,  # Try maximum allowed
-                'expand': 'changelog',
-                'fields': 'key,summary,issuetype,created,status'
-            }
-            
             try:
-                response = self._make_request(base_url, params=params)
-                data = response.json()
+                # Fetch issues for this month (with automatic subdivision if needed)
+                month_issues = self._fetch_issues_for_period(project_key, month_start, month_end, seen_keys, depth=0)
                 
-                issues = data.get('issues', [])
-                total = data.get('total', 0)
-                
-                logging.warning(f"  Fetched {len(issues)} issues (total in period: {total})")
-                
-                # Add only new issues (avoid duplicates at month boundaries)
+                # Add only new issues (avoid duplicates at boundaries)
                 new_issues = 0
-                for issue in issues:
+                for issue in month_issues:
                     issue_key = issue.get('key')
-                    if issue_key not in seen_keys:
+                    if issue_key and issue_key not in seen_keys:
                         all_issues.append(issue)
                         seen_keys.add(issue_key)
                         new_issues += 1
                 
-                if new_issues < len(issues):
-                    logging.warning(f"  Skipped {len(issues) - new_issues} duplicate issues")
-                
-                # If we got 1000 issues, there might be more - warn user
-                if len(issues) >= 1000:
-                    logging.warning(f"  WARNING: Hit 1000 issue limit for this month. Some issues may be missing!")
+                logging.warning(f"  Total for month: {new_issues} unique issues ({len(month_issues) - new_issues} duplicates skipped)")
                     
             except Exception as e:
                 logging.error(f"Failed to fetch issues for month {start_str} to {end_str}: {e}")
-                # Continue with next month instead of failing completely
                 continue
         
         logging.warning(f"Total unique issues fetched: {len(all_issues)}")
