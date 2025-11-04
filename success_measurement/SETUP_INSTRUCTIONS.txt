@@ -1,0 +1,66 @@
+===============================================================
+SUCCESS MEASUREMENT - QUICK SETUP GUIDE
+===============================================================
+
+STEP 1: Copy Environment File
+------------------------------
+You mentioned having a .env file at SuccessMeasurement_Pilot/.env
+Copy it to the success_measurement directory:
+
+  cp ../SuccessMeasurement_Pilot/.env .env
+
+OR create a new .env file with these variables:
+
+  ATLASSIAN_EMAIL=your-email@fielmann.com
+  ATLASSIAN_API_TOKEN=your-jira-api-token
+  ATLASSIAN_BASE_URL=https://fielmann.atlassian.net
+  GITHUB_TOKEN=your-github-token
+  GITHUB_ORG=fielmann-ag
+
+
+STEP 2: Install Dependencies
+-----------------------------
+Create a virtual environment (recommended):
+
+  python3 -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
+  pip install -r requirements.txt
+
+
+STEP 3: Verify Configuration
+-----------------------------
+Check that Omnichannel_Customer_Account/config.yaml has correct:
+  - project_key
+  - repositories
+  - date_range_months
+  - status names (must match your Jira board exactly)
+
+
+STEP 4: Run the Analysis
+-------------------------
+  cd Omnichannel_Customer_Account
+  python run_analysis.py
+
+OR from the success_measurement directory:
+  python Omnichannel_Customer_Account/run_analysis.py
+
+
+EXPECTED OUTPUT
+---------------
+The script will create two CSV files:
+  - Omnichannel_Customer_Account/data/github_data.csv
+  - Omnichannel_Customer_Account/data/jira_data.csv
+
+
+TROUBLESHOOTING
+---------------
+- If .env not found: Ensure it's in success_measurement/ directory
+- If API errors: Check token validity and permissions
+- If no data: Adjust date_range_months in config.yaml
+- For detailed help: See README.md
+
+
+===============================================================
+Ready to collect your data!
+===============================================================
+

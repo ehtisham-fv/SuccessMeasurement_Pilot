@@ -1,0 +1,18 @@
+# HTTP Requests
+requests==2.31.0
+
+# Environment Management
+python-dotenv==1.0.0
+
+# YAML Configuration
+PyYAML==6.0.1
+
+# Retry Logic
+tenacity==8.2.3
+
+# Date/Time Utilities
+python-dateutil==2.8.2
+
+# Optional: Progress bars (nice-to-have)
+tqdm==4.66.1
+
