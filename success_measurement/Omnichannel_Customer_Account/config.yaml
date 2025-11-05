@@ -25,3 +25,24 @@ repositories:
     full_repo_path: "fielmann-ag/customer-gdpr-deletion"
     branch: "main"  # Informational only
 
+# Metrics configuration
+metrics:
+  change_lead_time:
+    enabled: true
+    description: "Time from PR creation to merge (for matched PRs only)"
+    
+  cycle_time:
+    enabled: true
+    description: "Time from In Progress to Done for Jira issues"
+    include_issue_types: ["Story", "Sub-task"]  # Configurable list: Epic, Story, Task, Sub-task, Bug
+    
+  bug_resolution_time:
+    enabled: true
+    description: "Time from In Progress to Done for Bug issues"
+    
+  # Future metrics can be added here
+  # Example:
+  # deployment_frequency:
+  #   enabled: false
+  #   description: "How often deployments occur"
+

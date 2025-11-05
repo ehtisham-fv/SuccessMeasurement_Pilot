@@ -241,3 +241,67 @@ def ensure_data_directory(project_path: str) -> None:
     data_dir = Path(project_path) / 'data'
     data_dir.mkdir(parents=True, exist_ok=True)
 
+
+def csv_exists(csv_path: str) -> bool:
+    """
+    Check if CSV file exists and has data (more than just header).
+    
+    Args:
+        csv_path: Path to CSV file.
+        
+    Returns:
+        True if file exists and has at least one data row.
+    """
+    csv_file = Path(csv_path)
+    
+    if not csv_file.exists():
+        return False
+    
+    try:
+        with open(csv_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            # Check if file has more than just header
+            return len(lines) > 1
+    except Exception:
+        return False
+
+
+def load_csv_to_dict(csv_path: str) -> List[Dict[str, Any]]:
+    """
+    Load CSV file into list of dictionaries.
+    
+    Args:
+        csv_path: Path to CSV file.
+        
+    Returns:
+        List of dictionaries with CSV data.
+        
+    Raises:
+        SystemExit: If file doesn't exist or is invalid.
+    """
+    csv_file = Path(csv_path)
+    
+    if not csv_file.exists():
+        logging.error(f"CSV file not found: {csv_path}")
+        logging.error("Please run data collection first: python3 run_analysis.py fetch_data")
+        sys.exit(1)
+    
+    data = []
+    
+    try:
+        with open(csv_file, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                data.append(row)
+        
+        if not data:
+            logging.error(f"CSV file is empty (no data rows): {csv_path}")
+            sys.exit(1)
+        
+        logging.warning(f"Loaded {len(data)} rows from {csv_file.name}")
+        return data
+        
+    except Exception as e:
+        logging.error(f"Failed to load CSV file {csv_path}: {e}")
+        sys.exit(1)
+
