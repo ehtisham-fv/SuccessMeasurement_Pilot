@@ -1,0 +1,30 @@
+module_name: "AI Adoption Analytics"
+description: "Cursor IDE adoption tracking for the department"
+
+# API Configuration
+api:
+  base_url: "https://api.cursor.com"
+  timeout_seconds: 30
+
+# Analysis settings
+analysis:
+  # Reference date for inactive user calculation
+  # Format: YYYY-MM-DD or null (defaults to today)
+  reference_date: null
+  
+  # Thresholds for inactive user detection (days)
+  inactive_thresholds_days:
+    - 30
+    - 60
+    - 90
+  
+  # Minimum requests to be considered "active" (default: 1)
+  active_user_min_requests: 1
+
+# Dashboard settings
+dashboard:
+  # Number of top users to show in leaderboard
+  top_users_count: 20
+  
+  # Output filename
+  output_filename: "adoption_dashboard.html"
