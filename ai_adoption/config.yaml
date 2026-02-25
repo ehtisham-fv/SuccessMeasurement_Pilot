@@ -28,3 +28,20 @@ dashboard:
   
   # Output filename
   output_filename: "adoption_dashboard.html"
+
+# Billing / On-Demand Usage Analysis
+billing:
+  # How many months back to analyze (2 = Jan+Feb 2026 for initial iteration)
+  months_back: 2
+
+  # Number of usage events per API page (API accepts up to 500)
+  page_size: 500
+
+  # Output HTML dashboard filename (saved in data/ folder)
+  output_filename: "billing_dashboard.html"
+
+  # Number of top spenders to show in leaderboard
+  top_spenders_count: 20
+
+  # Delay in seconds between API requests to respect rate limit (20 req/min)
+  request_delay_seconds: 3
